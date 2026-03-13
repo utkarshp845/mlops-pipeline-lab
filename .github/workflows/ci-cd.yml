@@ -114,23 +114,8 @@ jobs:
       - name: Verify kubectl can reach K3s
         run: kubectl get nodes
 
-      - name: Ensure mlops namespace exists
-        run: kubectl apply -f k8s/service.yaml
-
-      - name: Inject image tag into deployment manifest
-        run: |
-          # Extract the short SHA tag from the full image list
-          IMAGE_TAG="${{ needs.build.outputs.image_tag }}"
-          GITHUB_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          FULL_IMAGE="${{ env.REGISTRY }}/${GITHUB_OWNER}/${{ github.event.repository.name }}:${IMAGE_TAG}"
-
-          echo "Deploying image: $FULL_IMAGE"
-
-          # Replace placeholders in deployment manifest
-          sed -i "s|ghcr.io/utkarshp845/mlops-k3s:IMAGE_TAG|${FULL_IMAGE}|g" k8s/deployment.yaml
-
-          # Show the final manifest for debugging
-          cat k8s/deployment.yaml
+      - name: Create mlops namespace
+        run: kubectl create namespace mlops --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Create GHCR pull secret in K3s
         run: |
@@ -141,12 +126,31 @@ jobs:
             --namespace=mlops \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Apply service manifest
+        run: kubectl apply -f k8s/service.yaml
+
+      - name: Inject image tag into deployment manifest
+        run: |
+          # Extract the short SHA tag from the full image list
+          IMAGE_TAG="${{ needs.build.outputs.image_tag }}"
+          GITHUB_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          REPO_NAME=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
+          FULL_IMAGE="${{ env.REGISTRY }}/${GITHUB_OWNER}/${REPO_NAME}:${IMAGE_TAG}"
+
+          echo "Deploying image: $FULL_IMAGE"
+
+          # Replace placeholders in deployment manifest
+          sed -i "s|ghcr.io/utkarshp845/mlops-pipeline-lab:latest|${FULL_IMAGE}|g" k8s/deployment.yaml
+
+          # Show the final manifest for debugging
+          cat k8s/deployment.yaml
+
       - name: Apply deployment
         run: kubectl apply -f k8s/deployment.yaml
 
       - name: Wait for rollout
         run: |
-          kubectl rollout status deployment/iris-classifier \
+          kubectl rollout status deployment/mlops-lab \
             -n mlops \
             --timeout=120s
 

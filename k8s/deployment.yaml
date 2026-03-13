@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mlops-lab
+  namespace: mlops
   labels:
     app: mlops-lab
 spec:
@@ -14,9 +15,11 @@ spec:
       labels:
         app: mlops-lab
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: mlops-lab
-          image: ghcr.io/utkarshp845/mlops-lab:latest  # replaced by CI with sha tag
+          image: ghcr.io/utkarshp845/mlops-pipeline-lab:latest  # replaced by CI with sha tag
           ports:
             - containerPort: 8000
           resources:
