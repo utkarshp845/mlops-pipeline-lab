@@ -68,8 +68,31 @@ jobs:
           name: model-artifact
           path: ./
 
+      - name: Debug - list all files
+        run: |
+          echo "=== Current directory ==="
+          find . -type f -name "*.pkl" 2>/dev/null || echo "No pkl files found"
+          echo ""
+          echo "=== Full directory structure ==="
+          ls -lhR
+
+      - name: Restructure artifact directory
+        run: |
+          mkdir -p model
+          if [ -d "model-artifact" ]; then
+            echo "Moving files from model-artifact to model/"
+            mv model-artifact/* model/ 2>/dev/null || true
+            rmdir model-artifact 2>/dev/null || true
+          fi
+          if [ -f "model.pkl" ]; then
+            echo "Moving model.pkl to model/"
+            mv model.pkl model/
+          fi
+          echo "=== Final model directory ==="
+          ls -lh model/
+
       - name: Verify model artifact exists
-        run: ls -lh model/model.pkl
+        run: test -f model/model.pkl && echo "✓ Model file verified" || exit 1
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
